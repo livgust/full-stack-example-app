@@ -1,0 +1,31 @@
+{
+  "name": "full-stack-example-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.ts",
+  "scripts": {
+    "build-image": "docker build -t fullstackexampleapp -f server/Dockerfile .",
+    "clean": "gts clean",
+    "coverage": "npm run coverage -ws",
+    "fix": "gts fix",
+    "lint": "gts lint",
+    "posttest": "npm run lint",
+    "start:local": "concurrently --kill-others \"npm run start:local -w server\" \"npm run start -w react-app\"",
+    "test": "npm run test -ws -- --watchAll=false"
+  },
+  "author": "Ora Innovations, LLC",
+  "license": "ISC",
+  "workspaces": [
+    "react-app",
+    "server"
+  ],
+  "dependencies": {
+    "gts": "^3.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^14.11.2",
+    "concurrently": "^7.3.0",
+    "gts": "^3.1.0",
+    "typescript": "^4.0.3"
+  }
+}
