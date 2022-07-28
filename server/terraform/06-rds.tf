@@ -3,7 +3,7 @@ module "cluster" {
   name           = "${var.name}-postgres-rds-${var.env}"
   database_name  = var.name_alphanumeric
   engine         = "aurora-postgresql"
-  engine_version = "11.12"
+  engine_version = "14.3"
   instance_class = "db.t4g.medium"
   instances = {
     one = {}

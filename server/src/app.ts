@@ -1,4 +1,4 @@
-import express, {Request, Response, json, urlencoded} from 'express';
+import express, {json, urlencoded} from 'express';
 import cors from 'cors';
 import db from './db';
 import {ToDo} from './entities/ToDo';

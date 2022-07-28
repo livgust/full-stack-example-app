@@ -13,6 +13,10 @@ variable "env" {
   default = "dev"
 }
 
+variable "ecr_repository" {
+  type = string
+}
+
 variable "image_name" {
   type = string
 }
@@ -28,5 +32,9 @@ variable "container_port" {
 }
 
 variable "domain_name" {
-  type    = string
+  type = string
+}
+
+variable "subdomain" {
+  type = string
 }

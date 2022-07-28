@@ -7,7 +7,7 @@ locals {
 }
 
 resource "aws_ecr_repository" "ecr" {
-  name                 = "${var.name}-${var.env}"
+  name                 = var.ecr_repository
   image_tag_mutability = "MUTABLE"
 }
 

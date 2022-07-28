@@ -10,6 +10,7 @@ coverage
 
 # production
 build
+.terraform*
 
 # misc
 .DS_Store

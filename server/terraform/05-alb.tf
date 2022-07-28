@@ -81,3 +81,15 @@ resource "aws_alb_listener" "https" {
 output "url" {
   value = "http://${aws_lb.alb.dns_name}"
 }
+
+data "aws_route53_zone" "zone" {
+  name = "${var.domain_name}."
+}
+
+resource "aws_route53_record" "cname_route53_record" {
+  zone_id = data.aws_route53_zone.zone.zone_id
+  name    = "${var.subdomain}.${var.domain_name}"
+  type    = "CNAME"
+  ttl     = "60"
+  records = [aws_lb.alb.dns_name]
+}

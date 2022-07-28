@@ -1,0 +1,90 @@
+name: Deploy to Amazon ECR
+on:
+  push:
+    branches:
+      - 'main'
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: full-stack-test-app-prod
+  DOMAIN_NAME: orainno.com
+  SUBDOMAIN: api
+jobs:
+  ecr-deploy:
+    name: Deploy to ECR
+    runs-on: ubuntu-latest
+    environment: prod
+    outputs:
+      image-name: ${{ steps.build-image.outputs.image-name || steps.use-old-image.outputs.image-name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+
+      - name: Set Git tag if new version
+        id: git-tag
+        uses: salsify/action-detect-and-tag-new-version@v2
+        with:
+          version-command: |
+            npm pkg get version -w server | sed -n 's/.*\([0-9+]\.[0-9+]\.[0-9+]\).*/\1/p'
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@13d241b293754004c80624b5567555c4a39ffbe3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: 'no'
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@aaf69d68aa3fb14c1d5a6be9ac61fe15b48453a2
+
+      - name: Set old image name if no new version
+        id: use-old-image
+        if: ${{ !steps.git-tag.outputs.tag }}
+        run: |
+          echo "::set-output name=image-name::${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:${{ steps.git-tag.outputs.current-version }}"
+
+      - name: Build, tag, and push image to Amazon ECR
+        if: ${{ steps.git-tag.outputs.tag }}
+        id: build-image
+        run: |
+          # Build a docker container and
+          # push it to ECR so that it can
+          # be deployed to ECS.
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:${{ steps.git-tag.outputs.current-version }} -f server .
+          docker push ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:${{ steps.git-tag.outputs.current-version }}
+          echo "::set-output name=image-name::${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:${{ steps.git-tag.outputs.current-version }}"
+  tf-deploy:
+    name: Deploy via Terraform
+    runs-on: ubuntu-latest
+    environment: prod
+    needs: ecr-deploy
+    defaults:
+      run:
+        working-directory: server/terraform
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@13d241b293754004c80624b5567555c4a39ffbe3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Terraform setup
+        uses: hashicorp/setup-terraform@v1
+        id: terraform-setup
+
+      - name: Terraform deploy
+        id: terraform-deploy
+        run: |
+          terraform fmt -check
+          terraform init
+          terraform workspace select prod || terraform workspace new prod
+          terraform validate
+          terraform apply -auto-approve -var="env=prod" -var="ecr_repository=${{ env.ECR_REPOSITORY }}" -var="image_name=${{ needs.ecr-deploy.outputs.image-name }}" -var="domain_name=${{ env.DOMAIN_NAME }}" -var="subdomain=${{ env.SUBDOMAIN }}"
